@@ -1,28 +1,30 @@
 import type { RaceResult } from '../types'
 
-const PROXIES: Array<{
-  name: string
-  wrap: (url: string) => string
-  parse: (text: string) => string
-}> = [
-  {
-    name: 'corsproxy.io',
-    wrap: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    parse: (text) => text,
-  },
-  {
-    name: 'allorigins',
-    wrap: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    parse: (text) => {
-      try { return (JSON.parse(text) as { contents: string }).contents } catch { return text }
-    },
-  },
-  {
-    name: 'codetabs',
-    wrap: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    parse: (text) => text,
-  },
+// All proxies must return the RAW bytes of the target page so we can decode
+// the correct charset ourselves. netkeiba.com serves pages as EUC-JP, not UTF-8.
+const PROXIES: Array<{ name: string; wrap: (url: string) => string }> = [
+  { name: 'corsproxy.io', wrap: (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}` },
+  { name: 'allorigins', wrap: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+  { name: 'codetabs', wrap: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` },
 ]
+
+// Markers that should appear on a correctly-decoded netkeiba page.
+const JP_MARKERS = ['着順', 'プロフィール', '競走成績', '血統', '日付', '抹消', '現役']
+
+// netkeiba uses EUC-JP, but some proxies re-encode to UTF-8. Decode the raw
+// bytes with whichever charset yields readable Japanese.
+function smartDecode(buf: ArrayBuffer): string {
+  const utf8 = new TextDecoder('utf-8').decode(buf)
+  if (JP_MARKERS.some((m) => utf8.includes(m))) return utf8
+
+  const eucjp = new TextDecoder('euc-jp').decode(buf)
+  if (JP_MARKERS.some((m) => eucjp.includes(m))) return eucjp
+
+  // Fallback: whichever has fewer replacement characters
+  const badUtf8 = (utf8.match(/�/g) ?? []).length
+  const badEuc = (eucjp.match(/�/g) ?? []).length
+  return badEuc <= badUtf8 ? eucjp : utf8
+}
 
 async function fetchWithProxy(url: string, onProgress?: (msg: string) => void): Promise<string> {
   const errors: string[] = []
@@ -34,9 +36,9 @@ async function fetchWithProxy(url: string, onProgress?: (msg: string) => void): 
       const res = await fetch(proxy.wrap(url), { signal: controller.signal })
       clearTimeout(timer)
       if (!res.ok) { errors.push(`${proxy.name}: HTTP ${res.status}`); continue }
-      const text = await res.text()
-      const content = proxy.parse(text)
-      if (content && content.length > 200) return content
+      const buf = await res.arrayBuffer()
+      const html = smartDecode(buf)
+      if (html && html.length > 200) return html
       errors.push(`${proxy.name}: レスポンスが空`)
     } catch (e) {
       clearTimeout(timer)
