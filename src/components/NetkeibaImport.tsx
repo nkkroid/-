@@ -18,8 +18,10 @@ export function NetkeibaImport({ horse, onClose }: Props) {
   const [progressMsg, setProgressMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [fetched, setFetched] = useState<FetchedResult[]>([])
+  const [allFetched, setAllFetched] = useState<FetchedResult[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [horseIdInput, setHorseIdInput] = useState('')
+  const [detectedHorseId, setDetectedHorseId] = useState('')
 
   const existingKeys = new Set(
     raceResults.filter((r) => r.horseId === horse.id).map((r) => r.date + r.raceName),
@@ -30,9 +32,11 @@ export function NetkeibaImport({ horse, onClose }: Props) {
   async function runFetch(horseId: string) {
     setStep('loading')
     setErrorMsg('')
+    setDetectedHorseId(horseId)
     try {
       progress('成績ページを取得中...')
       const results = await fetchRaceHistory(horseId, progress)
+      setAllFetched(results)
       const newOnes = results.filter((r) => !existingKeys.has(r.date + r.raceName))
       setFetched(newOnes)
       setSelected(new Set(newOnes.map((_, i) => i)))
@@ -177,8 +181,50 @@ export function NetkeibaImport({ horse, onClose }: Props) {
         {step === 'done' && (
           <>
             {fetched.length === 0 ? (
-              <div className="rounded-xl bg-gray-50 py-8 text-center text-sm text-gray-500">
-                新しいレース結果はありませんでした
+              <div className="rounded-xl bg-orange-50 p-4 text-sm space-y-2">
+                <div className="font-semibold text-orange-700">
+                  {allFetched.length > 0
+                    ? `${allFetched.length}件取得しましたが、すでに登録済みです`
+                    : 'レース結果が取得できませんでした'}
+                </div>
+                <div className="text-xs text-orange-600 space-y-1">
+                  {allFetched.length === 0 && (
+                    <>
+                      <div>• 別の馬と混同している可能性があります（同名馬が複数存在する場合）</div>
+                      <div>• 馬IDを直接入力すると正確に取得できます</div>
+                    </>
+                  )}
+                  <div>
+                    <a
+                      href={`https://db.netkeiba.com/?pid=horse_list&word=${encodeURIComponent(horse.name)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline"
+                    >
+                      netkeibaで「{horse.name}」を検索して確認 →
+                    </a>
+                  </div>
+                  {detectedHorseId && (
+                    <div className="text-gray-500">
+                      使用した馬ID: {detectedHorseId}（
+                      <a
+                        href={`https://db.netkeiba.com/horse/${detectedHorseId}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        馬ページを確認
+                      </a>
+                      ）
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setStep('idle')}
+                  className="mt-2 w-full rounded-xl bg-orange-100 py-2 text-sm font-semibold text-orange-700"
+                >
+                  別のIDで再試行
+                </button>
               </div>
             ) : (
               <>
