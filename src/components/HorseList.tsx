@@ -4,7 +4,6 @@ import type { Horse, HorseStatus } from '../types'
 import { GradeBadge, StatusBadge } from './Dashboard'
 import { HorseForm } from './HorseForm'
 import { RaceResultForm } from './RaceResultForm'
-import { NetkeibaImport } from './NetkeibaImport'
 
 const STATUS_FILTERS: (HorseStatus | '全て')[] = ['全て', '現役', '休養中', '引退']
 
@@ -15,7 +14,6 @@ export function HorseList() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Horse | null>(null)
   const [addResultFor, setAddResultFor] = useState<string | null>(null)
-  const [importFor, setImportFor] = useState<Horse | null>(null)
 
   const filtered = filter === '全て' ? horses : horses.filter((h) => h.status === filter)
 
@@ -70,7 +68,6 @@ export function HorseList() {
               onEdit={() => setEditing(horse)}
               onDelete={() => handleDelete(horse)}
               onAddResult={() => setAddResultFor(horse.id)}
-              onImport={() => setImportFor(horse)}
             />
           ))}
         </div>
@@ -91,18 +88,12 @@ export function HorseList() {
           onClose={() => setAddResultFor(null)}
         />
       )}
-      {importFor && (
-        <NetkeibaImport
-          horse={importFor}
-          onClose={() => setImportFor(null)}
-        />
-      )}
     </div>
   )
 }
 
 function HorseCard({
-  horse, expanded, onToggle, onEdit, onDelete, onAddResult, onImport,
+  horse, expanded, onToggle, onEdit, onDelete, onAddResult,
 }: {
   horse: Horse
   expanded: boolean
@@ -110,7 +101,6 @@ function HorseCard({
   onEdit: () => void
   onDelete: () => void
   onAddResult: () => void
-  onImport: () => void
 }) {
   return (
     <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -165,13 +155,7 @@ function HorseCard({
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 border-t border-gray-50 px-4 py-3">
-            <ActionBtn
-              emoji="📥"
-              label="成績を自動取得"
-              cls="bg-emerald-600 text-white"
-              onClick={onImport}
-            />
-            <ActionBtn emoji="＋" label="結果を手入力" cls="bg-gray-100 text-gray-700" onClick={onAddResult} />
+            <ActionBtn emoji="＋" label="レース結果を追加" cls="bg-emerald-600 text-white" onClick={onAddResult} />
             <ActionBtn emoji="✏️" label="編集" cls="bg-blue-50 text-blue-700" onClick={onEdit} />
             <ActionBtn emoji="🗑" label="削除" cls="bg-red-50 text-red-600" onClick={onDelete} />
             <a
@@ -180,7 +164,7 @@ function HorseCard({
               rel="noopener noreferrer"
               className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600"
             >
-              🔗 netkeiba
+              🔗 netkeibaで成績確認
             </a>
           </div>
         </div>

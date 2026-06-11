@@ -66,7 +66,7 @@ export function RaceResults() {
         <div className="rounded-xl bg-white py-12 text-center shadow-sm ring-1 ring-gray-200">
           <div className="text-4xl">🏆</div>
           <p className="mt-3 text-sm text-gray-500">レース結果がありません</p>
-          <p className="mt-1 text-xs text-gray-400">馬カードの「📥 成績を自動取得」で一括インポートできます</p>
+          <p className="mt-1 text-xs text-gray-400">「＋ 登録」または馬カードから結果を追加できます</p>
         </div>
       ) : (
         <div className="space-y-2">
