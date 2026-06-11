@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { StoreProvider, useStoreContext } from './context/StoreContext'
 import { Dashboard } from './components/Dashboard'
 import { HorseList } from './components/HorseList'
 import { RaceResults } from './components/RaceResults'
 import { FinancialSummary } from './components/FinancialSummary'
 import { UpcomingRaces } from './components/UpcomingRaces'
+import { ImportModal, type ImportPayload } from './components/ImportModal'
+import { BookmarkletSetup } from './components/BookmarkletSetup'
 
 type Tab = 'dashboard' | 'horses' | 'results' | 'financial' | 'upcoming'
 
@@ -19,7 +21,25 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 function AppInner() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [showMenu, setShowMenu] = useState(false)
+  const [showBookmarklet, setShowBookmarklet] = useState(false)
+  const [importData, setImportData] = useState<ImportPayload | null>(null)
   const { isDemo, resetToDemo, clearAll } = useStoreContext()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const raw = params.get('import')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(raw)) as ImportPayload
+        if (Array.isArray(parsed.results) && parsed.results.length > 0) {
+          setImportData(parsed)
+        }
+      } catch {
+        // ignore malformed import param
+      }
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const today = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
 
@@ -57,13 +77,22 @@ function AppInner() {
                   ⚙️
                 </button>
                 {showMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-white shadow-lg ring-1 ring-gray-200">
+                  <div className="absolute right-0 top-full mt-1 w-52 rounded-xl bg-white shadow-lg ring-1 ring-gray-200">
                     <div className="p-1">
                       {isDemo && (
                         <div className="mb-1 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-600">
                           デモデータ表示中
                         </div>
                       )}
+                      <button
+                        onClick={() => {
+                          setShowBookmarklet(true)
+                          setShowMenu(false)
+                        }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        📲 自動インポート設定
+                      </button>
                       <button
                         onClick={() => {
                           if (confirm('デモデータをリセットしますか？')) {
@@ -121,6 +150,13 @@ function AppInner() {
       <main className="mx-auto max-w-6xl px-4 py-6" onClick={() => showMenu && setShowMenu(false)}>
         {renderContent()}
       </main>
+
+      {importData && (
+        <ImportModal data={importData} onClose={() => setImportData(null)} />
+      )}
+      {showBookmarklet && (
+        <BookmarkletSetup onClose={() => setShowBookmarklet(false)} />
+      )}
     </div>
   )
 }
