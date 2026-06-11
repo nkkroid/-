@@ -4,6 +4,7 @@ import type { Horse, HorseStatus } from '../types'
 import { GradeBadge, StatusBadge } from './Dashboard'
 import { HorseForm } from './HorseForm'
 import { RaceResultForm } from './RaceResultForm'
+import { NetkeibaImport } from './NetkeibaImport'
 
 const STATUS_FILTERS: (HorseStatus | '全て')[] = ['全て', '現役', '休養中', '引退']
 
@@ -14,25 +15,25 @@ export function HorseList() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Horse | null>(null)
   const [addResultFor, setAddResultFor] = useState<string | null>(null)
+  const [importFor, setImportFor] = useState<Horse | null>(null)
 
   const filtered = filter === '全て' ? horses : horses.filter((h) => h.status === filter)
 
   const handleDelete = (horse: Horse) => {
-    if (confirm(`「${horse.name}」を削除しますか？関連するレース結果・収支データも削除されます。`)) {
-      deleteHorse(horse.id)
-    }
+    if (confirm(`「${horse.name}」を削除しますか？`)) deleteHorse(horse.id)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex overflow-x-auto gap-1.5 pb-0.5">
           {STATUS_FILTERS.map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                filter === s ? 'bg-[#0f1f3d] text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                filter === s ? 'bg-[#0f1f3d] text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200'
               }`}
             >
               {s}
@@ -41,163 +42,161 @@ export function HorseList() {
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-[#0f1f3d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a3063]"
+          className="shrink-0 flex items-center gap-1 rounded-lg bg-[#0f1f3d] px-3 py-2 text-sm font-semibold text-white"
         >
-          ＋ 馬を追加
+          ＋ 追加
         </button>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl bg-white py-16 text-center shadow-sm ring-1 ring-gray-200">
+        <div className="rounded-xl bg-white py-12 text-center shadow-sm ring-1 ring-gray-200">
           <div className="text-4xl">🐴</div>
-          <p className="mt-3 text-sm text-gray-500">
-            {filter === '全て' ? '馬が登録されていません' : `${filter}の馬はいません`}
-          </p>
-          {filter === '全て' && (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="mt-4 rounded-lg bg-[#0f1f3d] px-5 py-2 text-sm font-semibold text-white"
-            >
-              最初の馬を追加する
-            </button>
-          )}
+          <p className="mt-3 text-sm text-gray-500">馬が登録されていません</p>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="mt-4 rounded-lg bg-[#0f1f3d] px-5 py-2 text-sm font-semibold text-white"
+          >
+            最初の馬を追加
+          </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filtered.map((horse) => (
-            <div
+            <HorseCard
               key={horse.id}
-              className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200"
-            >
-              {/* Header row */}
-              <div
-                className="flex cursor-pointer items-center justify-between p-5"
-                onClick={() => setExpanded(expanded === horse.id ? null : horse.id)}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white shrink-0"
-                    style={{ backgroundColor: horse.imageColor }}
-                  >
-                    🐴
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-gray-800">{horse.name}</span>
-                      <StatusBadge status={horse.status} />
-                    </div>
-                    <div className="mt-0.5 text-sm text-gray-500">
-                      {horse.age}歳 {horse.sex} {horse.color && `(${horse.color})`} · {horse.stable} {horse.trainer}調教師
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden text-right sm:block">
-                  <div className="text-sm font-semibold text-gray-700">
-                    {horse.record.starts}戦{horse.record.wins}勝
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    [{horse.record.wins}-{horse.record.second}-{horse.record.third}]
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="border-t border-gray-50 px-5 py-3">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Stat label="出資口数" value={`${horse.sharesOwned}口 / ${horse.totalShares}口`} />
-                  <Stat label="出資金" value={`¥${horse.investmentAmount.toLocaleString()}`} />
-                  <Stat label="月会費" value={horse.monthlyFee > 0 ? `¥${horse.monthlyFee.toLocaleString()}` : '—'} />
-                  <Stat label="獲得賞金" value={`¥${horse.record.earnings.toLocaleString()}`} />
-                </div>
-              </div>
-
-              {/* Next Race */}
-              {horse.nextRace && (
-                <div className="border-t border-gray-50 bg-blue-50 px-5 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-blue-600">次走</span>
-                      <GradeBadge grade={horse.nextRace.grade} />
-                      <span className="text-sm font-medium text-gray-700">{horse.nextRace.raceName}</span>
-                      {!horse.nextRace.confirmed && (
-                        <span className="text-xs text-orange-500">（予定）</span>
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {horse.nextRace.date} · {horse.nextRace.venue} {horse.nextRace.distance}({horse.nextRace.surface})
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Expanded + Actions */}
-              {expanded === horse.id && (
-                <div className="border-t border-gray-100 px-5 py-4">
-                  {(horse.sire || horse.dam) && (
-                    <div className="mb-4 flex flex-wrap gap-x-8 gap-y-1">
-                      {horse.sire && <DetailItem label="父" value={horse.sire} />}
-                      {horse.dam && <DetailItem label="母" value={horse.dam} />}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={`https://db.netkeiba.com/?pid=horse_list&word=${encodeURIComponent(horse.name)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
-                    >
-                      📊 netkeibaで検索
-                    </a>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setAddResultFor(horse.id) }}
-                      className="flex items-center gap-1 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-200"
-                    >
-                      ＋ レース結果を登録
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditing(horse) }}
-                      className="flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200"
-                    >
-                      ✏️ 編集
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(horse) }}
-                      className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                    >
-                      🗑 削除
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              horse={horse}
+              expanded={expanded === horse.id}
+              onToggle={() => setExpanded(expanded === horse.id ? null : horse.id)}
+              onEdit={() => setEditing(horse)}
+              onDelete={() => handleDelete(horse)}
+              onAddResult={() => setAddResultFor(horse.id)}
+              onImport={() => setImportFor(horse)}
+            />
           ))}
         </div>
       )}
 
       {/* Modals */}
       {showAdd && (
-        <HorseForm
-          onSave={(data) => addHorse(data)}
-          onClose={() => setShowAdd(false)}
-        />
+        <HorseForm onSave={(d) => addHorse(d)} onClose={() => setShowAdd(false)} />
       )}
       {editing && (
-        <HorseForm
-          horse={editing}
-          onSave={(data) => updateHorse(editing.id, data)}
-          onClose={() => setEditing(null)}
-        />
+        <HorseForm horse={editing} onSave={(d) => updateHorse(editing.id, d)} onClose={() => setEditing(null)} />
       )}
       {addResultFor && (
         <RaceResultForm
           horses={horses}
           defaultHorseId={addResultFor}
-          onSave={(result) => addRaceResult(result, horses)}
+          onSave={(r) => addRaceResult(r, horses)}
           onClose={() => setAddResultFor(null)}
         />
       )}
+      {importFor && (
+        <NetkeibaImport
+          horse={importFor}
+          onClose={() => setImportFor(null)}
+        />
+      )}
     </div>
+  )
+}
+
+function HorseCard({
+  horse, expanded, onToggle, onEdit, onDelete, onAddResult, onImport,
+}: {
+  horse: Horse
+  expanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onAddResult: () => void
+  onImport: () => void
+}) {
+  return (
+    <div className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
+      {/* Main row */}
+      <button
+        className="flex w-full items-center gap-3 p-4 text-left active:bg-gray-50"
+        onClick={onToggle}
+      >
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-white"
+          style={{ backgroundColor: horse.imageColor }}
+        >
+          🐴
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-bold text-gray-800">{horse.name}</span>
+            <StatusBadge status={horse.status} />
+          </div>
+          <div className="mt-0.5 truncate text-xs text-gray-500">
+            {horse.age}歳 {horse.sex}
+            {horse.trainer ? ` · ${horse.trainer}調教師` : ''}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-sm font-semibold text-gray-700">{horse.record.starts}戦{horse.record.wins}勝</div>
+          <div className="text-xs text-gray-400">[{horse.record.wins}-{horse.record.second}-{horse.record.third}]</div>
+        </div>
+        <span className={`ml-1 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+
+      {/* Next race strip */}
+      {horse.nextRace && (
+        <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 text-xs">
+          <span className="font-semibold text-blue-600">次走</span>
+          <GradeBadge grade={horse.nextRace.grade} />
+          <span className="font-medium text-gray-700 truncate">{horse.nextRace.raceName}</span>
+          <span className="ml-auto shrink-0 text-gray-500">{horse.nextRace.date}</span>
+        </div>
+      )}
+
+      {/* Expanded */}
+      {expanded && (
+        <div className="border-t border-gray-100">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-4">
+            <Stat label="出資口数" value={`${horse.sharesOwned}/${horse.totalShares}口`} />
+            <Stat label="出資金" value={horse.investmentAmount > 0 ? `¥${horse.investmentAmount.toLocaleString()}` : '未設定'} />
+            <Stat label="月会費" value={horse.monthlyFee > 0 ? `¥${horse.monthlyFee.toLocaleString()}` : '未設定'} />
+            <Stat label="獲得賞金" value={`¥${horse.record.earnings.toLocaleString()}`} />
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2 border-t border-gray-50 px-4 py-3">
+            <ActionBtn
+              emoji="📥"
+              label="成績を自動取得"
+              cls="bg-emerald-600 text-white"
+              onClick={onImport}
+            />
+            <ActionBtn emoji="＋" label="結果を手入力" cls="bg-gray-100 text-gray-700" onClick={onAddResult} />
+            <ActionBtn emoji="✏️" label="編集" cls="bg-blue-50 text-blue-700" onClick={onEdit} />
+            <ActionBtn emoji="🗑" label="削除" cls="bg-red-50 text-red-600" onClick={onDelete} />
+            <a
+              href={`https://db.netkeiba.com/?pid=horse_list&word=${encodeURIComponent(horse.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600"
+            >
+              🔗 netkeiba
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ActionBtn({ emoji, label, cls, onClick }: { emoji: string; label: string; cls: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold ${cls}`}
+    >
+      {emoji} {label}
+    </button>
   )
 }
 
@@ -206,15 +205,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-xs text-gray-400">{label}</div>
       <div className="text-sm font-semibold text-gray-700">{value}</div>
-    </div>
-  )
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <span className="w-6 text-xs text-gray-400">{label}</span>
-      <span className="text-sm text-gray-700">{value}</span>
     </div>
   )
 }

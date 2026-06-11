@@ -10,146 +10,127 @@ export function RaceResults() {
 
   const horseOptions = ['全て', ...horses.map((h) => h.name)]
   const filtered =
-    selectedHorse === '全て'
-      ? raceResults
-      : raceResults.filter((r) => r.horseName === selectedHorse)
-
-  const sorted = [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    selectedHorse === '全て' ? raceResults : raceResults.filter((r) => r.horseName === selectedHorse)
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
 
   const totalDividend = sorted.reduce((s, r) => s + r.ownerDividend, 0)
   const wins = sorted.filter((r) => r.position === 1).length
   const placed = sorted.filter((r) => r.position <= 3).length
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {horseOptions.map((name) => (
+    <div className="space-y-3">
+      {/* Filter */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex overflow-x-auto gap-1.5 pb-0.5">
+          {horseOptions.slice(0, 6).map((name) => (
             <button
               key={name}
               onClick={() => setSelectedHorse(name)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 selectedHorse === name
                   ? 'bg-[#0f1f3d] text-white'
-                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+                  : 'bg-white text-gray-600 ring-1 ring-gray-200'
               }`}
             >
-              {name}
+              {name === '全て' ? '全て' : name}
             </button>
           ))}
+          {horseOptions.length > 6 && (
+            <select
+              value={horseOptions.includes(selectedHorse) && selectedHorse !== '全て' && horseOptions.indexOf(selectedHorse) >= 6 ? selectedHorse : ''}
+              onChange={(e) => e.target.value && setSelectedHorse(e.target.value)}
+              className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm"
+            >
+              <option value="">その他…</option>
+              {horseOptions.slice(6).map((n) => <option key={n}>{n}</option>)}
+            </select>
+          )}
         </div>
         <button
           onClick={() => setShowAdd(true)}
           disabled={horses.length === 0}
-          className="flex items-center gap-1.5 rounded-lg bg-[#0f1f3d] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a3063] disabled:opacity-40"
+          className="shrink-0 rounded-lg bg-[#0f1f3d] px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
-          ＋ 結果を登録
+          ＋ 登録
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm ring-1 ring-gray-200">
-          <div className="text-2xl font-bold text-gray-800">{sorted.length}</div>
-          <div className="text-xs text-gray-500">出走数</div>
-        </div>
-        <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm ring-1 ring-gray-200">
-          <div className="text-2xl font-bold text-yellow-500">{wins}</div>
-          <div className="text-xs text-gray-500">勝利 ({placed}回連対)</div>
-        </div>
-        <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm ring-1 ring-gray-200">
-          <div className="text-xl font-bold text-emerald-600">¥{totalDividend.toLocaleString()}</div>
-          <div className="text-xs text-gray-500">受取配当合計</div>
-        </div>
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard value={sorted.length} label="出走数" />
+        <StatCard value={wins} label={`勝利 (${placed}連対)`} gold />
+        <StatCard value={`¥${(totalDividend / 10000).toFixed(1)}万`} label="受取配当" green />
       </div>
 
       {sorted.length === 0 ? (
-        <div className="rounded-xl bg-white py-16 text-center shadow-sm ring-1 ring-gray-200">
+        <div className="rounded-xl bg-white py-12 text-center shadow-sm ring-1 ring-gray-200">
           <div className="text-4xl">🏆</div>
           <p className="mt-3 text-sm text-gray-500">レース結果がありません</p>
-          {horses.length > 0 && (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="mt-4 rounded-lg bg-[#0f1f3d] px-5 py-2 text-sm font-semibold text-white"
-            >
-              最初の結果を登録する
-            </button>
-          )}
+          <p className="mt-1 text-xs text-gray-400">馬カードの「📥 成績を自動取得」で一括インポートできます</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">着順</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">日付</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">馬名</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">レース名</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">競馬場</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">コース</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">タイム</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">配当</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {sorted.map((result) => (
-                  <tr key={result.id} className="group hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <PositionBadge position={result.position} />
-                        <span className="text-xs text-gray-400">/{result.totalRunners}</span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{result.date}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-800">{result.horseName}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <GradeBadge grade={result.grade} />
-                        <span className="text-gray-700">{result.raceName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{result.venue}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">
-                      {result.distance} {result.surface}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-gray-700">{result.time}</td>
-                    <td className="px-4 py-3 text-right">
-                      {result.ownerDividend > 0 ? (
-                        <span className="font-bold text-emerald-600">
-                          +¥{result.ownerDividend.toLocaleString()}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => {
-                          if (confirm('このレース結果を削除しますか？')) deleteRaceResult(result.id)
-                        }}
-                        className="hidden text-gray-300 hover:text-red-500 group-hover:block"
-                        title="削除"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-2">
+          {sorted.map((result) => (
+            <div key={result.id} className="rounded-xl bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <PositionBadge position={result.position} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <GradeBadge grade={result.grade} />
+                    <span className="font-semibold text-gray-800 text-sm">{result.raceName}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                    <span>{result.date}</span>
+                    <span>{result.venue} {result.distance}({result.surface})</span>
+                    <span>{result.horseName}</span>
+                    {result.jockey && <span>{result.jockey}</span>}
+                    {result.time && <span>{result.time}</span>}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {result.ownerDividend > 0 ? (
+                    <div className="text-sm font-bold text-emerald-600">
+                      +¥{result.ownerDividend.toLocaleString()}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-300">—</div>
+                  )}
+                  <div className="text-xs text-gray-400">{result.position}/{result.totalRunners}着</div>
+                </div>
+              </div>
+              <div className="flex justify-end border-t border-gray-50 px-4 py-1.5">
+                <button
+                  onClick={() => {
+                    if (confirm('削除しますか？')) deleteRaceResult(result.id)
+                  }}
+                  className="text-xs text-gray-300 hover:text-red-500"
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {showAdd && (
         <RaceResultForm
           horses={horses}
-          onSave={(result) => addRaceResult(result, horses)}
+          onSave={(r) => addRaceResult(r, horses)}
           onClose={() => setShowAdd(false)}
         />
       )}
+    </div>
+  )
+}
+
+function StatCard({ value, label, gold, green }: { value: string | number; label: string; gold?: boolean; green?: boolean }) {
+  return (
+    <div className="rounded-xl bg-white px-3 py-3 text-center shadow-sm ring-1 ring-gray-200">
+      <div className={`text-xl font-bold ${gold ? 'text-yellow-500' : green ? 'text-emerald-600' : 'text-gray-800'}`}>
+        {value}
+      </div>
+      <div className="mt-0.5 text-xs text-gray-500">{label}</div>
     </div>
   )
 }
