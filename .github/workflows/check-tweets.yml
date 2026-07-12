@@ -1,0 +1,46 @@
+name: ツイートをチェックしてLINEに通知
+
+on:
+  schedule:
+    # 15分ごとにチェック(X APIのプランに合わせて調整してください)
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: check-tweets
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 前回の状態を復元
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: tweet-state-${{ github.run_id }}
+          restore-keys: |
+            tweet-state-
+
+      - name: 新着ツイートをチェック
+        run: python check_tweets.py
+        env:
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          X_USERNAME: ${{ vars.X_USERNAME }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+
+      - name: 状態を保存
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: tweet-state-${{ github.run_id }}
